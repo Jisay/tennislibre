@@ -1,0 +1,18 @@
+{
+  "name": "tennislibre",
+  "version": "1.0.0",
+  "description": "Auto reservation of tennis court on tennislibre.com",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^6.1.0",
+    "moment": "^2.22.2",
+    "npm": "^6.4.1",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.2"
+  }
+}
