@@ -40,7 +40,7 @@ function reserve(cookies) {
   phpSessIdCookie = phpSessIdCookie.split('=');
 
   // get the next week day of the reservation (next sunday for example)
-  const nextReservationWeekDay = moment().day(process.env.RESERVE_WEEKDAY);
+  const nextReservationWeekDay = moment().add(1, 'weeks').day(process.env.RESERVE_WEEKDAY);
 
   return request({
     method: 'POST',
@@ -51,7 +51,7 @@ function reserve(cookies) {
     },
     form: {
       couleurbordure: '',
-      idcourt: 2363,
+      idcourt: process.env.RESERVE_COURT_ID,
       dateday: nextReservationWeekDay.format('YYYYMMDD'),
       page: 1,
       tmstdeb: nextReservationWeekDay.clone().hour(process.env.RESERVE_BEGIN_HOUR).startOf('hour').format('X'),
