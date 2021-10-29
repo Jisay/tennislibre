@@ -1,105 +1,122 @@
-require('./tennislibre.constants.js');
-
-const request = require('request-promise');
-const moment = require('moment');
+const find = require('lodash/find');
 require('dotenv').config();
 
-function login() {
-  return request({
-    method: 'POST',
-    uri: `${CONSTANTS.urls.tennislibre}${CONSTANTS.scripts.login}`,
-    form: {
-      email: process.env.LOGIN_EMAIL,
-      pwd: process.env.LOGIN_PASSWORD,
-    },
-    resolveWithFullResponse: true,
-  }).catch((responseBody) => {
-    if (responseBody.statusCode === 302) {
-      return responseBody;
+const useUser = require('./models/user');
+const { getNextReservationDay } = require('./helpers/date');
+
+const { BOOKING, COURTS } = require('./constants');
+
+const run = async () => {
+  try {
+    // init users:
+    // - get their php session id
+    // - get their pending bookings
+    const doubleUser = await useUser(
+      process.env.DOUBLE_USER_EMAIL,
+      process.env.DOUBLE_USER_PASSWORD,
+    );
+    const simpleUser = await useUser(
+      process.env.SIMPLE_USER_EMAIL,
+      process.env.SIMPLE_USER_PASSWORD,
+    );
+
+    await Promise.all([doubleUser, simpleUser]);
+
+    // define the next reservation day
+    const nextResevationDay = getNextReservationDay();
+
+    // launch the magic :-)
+    // get next pending resa for double
+    const nextPendingDoubleBooking = doubleUser.getNextPendingBooking(
+      nextResevationDay,
+      BOOKING.beginHour,
+      BOOKING.endHour,
+    );
+
+    const nextPendingSimpleBooking = simpleUser.getNextPendingBooking(
+      nextResevationDay,
+      BOOKING.beginHour,
+      BOOKING.endHour,
+      false,
+    );
+
+    // if pending double resa
+    if (nextPendingDoubleBooking) {
+      // this mean there is a pending resa in double
+      // check if there is a better court
+      const courtIndex = COURTS.indexOf(nextPendingDoubleBooking.courtId);
+      if (courtIndex > 0) {
+        await doubleUser.makeBestBooking(
+          {
+            momentDay: nextResevationDay,
+            beginHour: BOOKING.beginHour,
+            endHour: BOOKING.endHour,
+          },
+          COURTS.slice(0, courtIndex),
+          true,
+          nextPendingDoubleBooking,
+        );
+      }
+    } else {
+      // no pending double
+      // check if simple is booked
+      if (nextPendingSimpleBooking) {
+        // cancel it
+        const res = await simpleUser.cancelPendingBooking(
+          nextPendingSimpleBooking,
+        );
+      }
+
+      // make the best book for double
+      await doubleUser.makeBestBooking(
+        {
+          momentDay: nextResevationDay,
+          beginHour: BOOKING.beginHour,
+          endHour: BOOKING.endHour,
+        },
+        COURTS,
+      );
+
+      // and book in simple for next week
+      await simpleUser.makeBestBooking(
+        {
+          momentDay: nextResevationDay.clone().add(1, 'week'),
+          beginHour: BOOKING.beginHour,
+          endHour: BOOKING.endHour,
+        },
+        COURTS,
+        false,
+      );
     }
 
-    console.log('Something went wrong during login');
-    process.exit(1);
-  });
-}
+    const nextWeekReservationDay = nextResevationDay.clone().add(1, 'week');
+    const nextWeekPendingSimpleBooking = simpleUser.getNextPendingBooking(
+      nextWeekReservationDay,
+      BOOKING.beginHour,
+      BOOKING.endHour,
+      false,
+    );
 
-function reserve(cookies) {
-  let phpSessIdCookie;
-
-  // try to get PHPSESSID
-  cookies.forEach((cookie) => {
-    if (cookie.indexOf('PHPSESSID') > -1) {
-      phpSessIdCookie = cookie;
+    if (nextWeekPendingSimpleBooking) {
+      const nextCourtIndex = COURTS.indexOf(
+        nextWeekPendingSimpleBooking.courtId,
+      );
+      if (nextCourtIndex > 0) {
+        await simpleUser.makeBestBooking(
+          {
+            momentDay: nextWeekReservationDay,
+            beginHour: BOOKING.beginHour,
+            endHour: BOOKING.endHour,
+          },
+          COURTS.slice(0, nextCourtIndex),
+          false,
+          nextWeekPendingSimpleBooking,
+        );
+      }
     }
-  });
-
-  if (!phpSessIdCookie) {
-    return null;
+  } catch (error) {
+    console.log(error);
   }
+};
 
-  phpSessIdCookie = phpSessIdCookie.split('=');
-
-  // get the next week day of the reservation (next sunday for example)
-  const nextReservationWeekDay = moment().day(process.env.RESERVE_WEEKDAY);
-
-  return request({
-    method: 'POST',
-    uri: `${CONSTANTS.urls.tennislibre}${CONSTANTS.scripts.reserve}`,
-    resolveWithFullResponse: true,
-    headers: {
-      Cookie: `PHPSESSID=${phpSessIdCookie[1].split(';')[0]};`
-    },
-    form: {
-      couleurbordure: '',
-      idcourt: 2363,
-      dateday: nextReservationWeekDay.format('YYYYMMDD'),
-      page: 1,
-      tmstdeb: nextReservationWeekDay.clone().hour(process.env.RESERVE_BEGIN_HOUR).startOf('hour').format('X'),
-      tmstfin: nextReservationWeekDay.clone().hour(process.env.RESERVE_END_HOUR).startOf('hour').format('X'),
-      pagetoredirect: 'responsive_day.php',
-      typepartner: 'dubble',
-      idmember: null,
-      commentvalue_member: '',
-      nominvite: '',
-      commentvalue_invite: '',
-      commentvalue_tournament: '',
-      nb_db_invite: 0,
-      name_dubble_1: process.env.RESERVE_DUBBLE_NAME_1,
-      dubble_1: process.env.RESERVE_DUBBLE_1,
-      name_dubble_2: process.env.RESERVE_DUBBLE_NAME_2,
-      dubble_2: process.env.RESERVE_DUBBLE_2,
-      name_dubble_3: process.env.RESERVE_DUBBLE_NAME_3,
-      dubble_3: process.env.RESERVE_DUBBLE_3,
-      name_dubble_4: process.env.RESERVE_DUBBLE_NAME_4,
-      dubble_4: process.env.RESERVE_DUBBLE_4,
-      commentvalue_dubble: '',
-    }
-  }).catch((responseBody) => {
-    if (responseBody.statusCode === 302) {
-      return responseBody;
-    }
-
-    console.log('Something went wrong during reservation', responseBody);
-    process.exit(1);
-
-  });
-}
-
-console.log('AUTO RESERVE COURT ON TENNISLIBRE.COM');
-console.log('Trying to login');
-
-return login(true).then((body) => {
-  console.log('Login success');
-  console.log('Trying to reserve court');
-
-  const reserveResponse = reserve(body.response.headers['set-cookie']);
-
-  if (!reserveResponse) {
-    console.log('Something went wrong during reserve, no PHPSESSID cookie found.');
-    return null;
-  }
-
-  return reserveResponse.then((response) => {
-    console.log('Reservation success!');
-  });
-});
+run();
