@@ -3,16 +3,17 @@
   "version": "1.0.0",
   "description": "Auto reservation of tennis court on tennislibre.com",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "scripts": {},
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^0.23.0",
     "dotenv": "^6.1.0",
+    "lodash": "^4.17.21",
+    "lodash-es": "^4.17.21",
     "moment": "^2.22.2",
+    "node-html-parser": "^5.0.0",
     "npm": "^6.4.1",
-    "request": "^2.88.0",
-    "request-promise": "^4.2.2"
+    "querystring": "^0.2.1"
   }
 }
