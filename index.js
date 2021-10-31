@@ -62,9 +62,7 @@ const run = async () => {
       // check if simple is booked
       if (nextPendingSimpleBooking) {
         // cancel it
-        const res = await simpleUser.cancelPendingBooking(
-          nextPendingSimpleBooking,
-        );
+        await simpleUser.cancelPendingBooking(nextPendingSimpleBooking);
       }
 
       // make the best book for double

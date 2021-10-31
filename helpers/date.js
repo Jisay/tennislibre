@@ -9,7 +9,7 @@ const getNextReservationDay = (
   const curDate = moment();
   const curWeekDay = curDate.isoWeekday();
 
-  if (curWeekDay < weekDay) {
+  if (curWeekDay < weekDay || curWeekDay === 7) {
     // the resa is for current week
     return moment().day(weekDay);
   }
