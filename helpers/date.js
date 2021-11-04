@@ -16,7 +16,7 @@ const getNextReservationDay = (
 
   if (
     curWeekDay > weekDay ||
-    (curWeekDay === curDate.weekDay && hour() >= endHour)
+    (curWeekDay === curDate.weekDay && curDate.hour() >= endHour)
   ) {
     // if day is passed or if current day is the resa day and hour is passed
     // this mean we need to add one week
