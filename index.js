@@ -63,6 +63,9 @@ const run = async () => {
       if (nextPendingSimpleBooking) {
         // cancel it
         await simpleUser.cancelPendingBooking(nextPendingSimpleBooking);
+        // sleep during 5 sec
+        const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        await delay(5000);
       }
 
       // make the best book for double
@@ -85,6 +88,8 @@ const run = async () => {
         COURTS,
         false,
       );
+
+      return true;
     }
 
     const nextWeekReservationDay = nextResevationDay.clone().add(1, 'week');
